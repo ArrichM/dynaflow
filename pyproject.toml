@@ -3,6 +3,12 @@ name = "dynaflow"
 version = "0.0.1-alpha"
 description = "AWS Dynamodb backend tracking store for MLFlow"
 authors = ["ArrichM <maximilianjakob.arrich@student.unisg.ch>"]
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/ArrichM/dynaflow"
+repository = "https://github.com/ArrichM/dynaflow"
+keywords = ["mlflow", "dynamodb", "tracking", "mlops", "aws"]
+
 
 [tool.poetry.dependencies]
 python = "^3.7"
