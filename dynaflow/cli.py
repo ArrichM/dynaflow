@@ -1,7 +1,9 @@
-import click
 import time
-import dynaflow.tracking_store as tracking_store
+
+import click
+
 import dynaflow.model_registry as model_registry
+import dynaflow.tracking_store as tracking_store
 
 
 @click.group()
@@ -58,22 +60,22 @@ def _destroy(base_name: str, region: str):
 @click.option(
     "--base-name",
     default="mlflow",
-    help="The name of the AWS dynamodb table to create.",
+    help="The prefix of the AWS dynamodb tables to create. Defaults to 'mlflow'.",
 )
 @click.option(
     "--region",
     default="eu-central-1",
-    help="The region in which to create the AWS Dynamodb table.",
+    help="The region in which to create the AWS Dynamodb table. Defaults to 'eu-central-1'.",
 )
 @click.option(
     "--read-capacity-units",
     default=1,
-    help="The provisioned RCU for the table.",
+    help="The provisioned RCU for the table. Defaults to 1.",
 )
 @click.option(
     "--write-capacity-units",
     default=1,
-    help="The provisioned WCU for the table.",
+    help="The provisioned WCU for the table. Defaults to 1.",
 )
 def deploy(
     base_name: str, region: str, read_capacity_units: int, write_capacity_units: int
@@ -85,12 +87,12 @@ def deploy(
 @click.option(
     "--base-name",
     default="mlflow",
-    help="The name of the AWS dynamodb table to create.",
+    help="The prefix of the AWS dynamodb tables to delete. Defaults to 'mlflow'.",
 )
 @click.option(
     "--region",
     default="eu-central-1",
-    help="The region in which to create the AWS Dynamodb table.",
+    help="The region in which to delete the AWS Dynamodb table. Defaults to 'eu-central-1'.",
 )
 def destroy(base_name: str, region: str):
 
