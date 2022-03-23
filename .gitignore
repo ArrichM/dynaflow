@@ -25,6 +25,7 @@ wheels/
 *.egg
 MANIFEST
 node_modules
+scripts/
 
 # Unit test / coverage reports
 htmlcov/

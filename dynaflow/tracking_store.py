@@ -1,5 +1,5 @@
-from typing import Any, List, Optional, Tuple, Union
 import logging
+from typing import Any, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -13,13 +13,13 @@ import mlflow
 from mlflow.entities.run_status import RunStatus
 from mlflow.store.entities import PagedList
 from mlflow.store.tracking import (
-    SEARCH_MAX_RESULTS_DEFAULT,
     DEFAULT_LOCAL_FILE_AND_ARTIFACT_PATH,
+    SEARCH_MAX_RESULTS_DEFAULT,
 )
 from mlflow.store.tracking.abstract_store import AbstractStore
 from pynamodb.attributes import (
     DiscriminatorAttribute,
-    JSONAttribute,
+    ListAttribute,
     MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
@@ -53,8 +53,8 @@ class ExperimentNameIndex(GlobalSecondaryIndex):
         read_capacity_units = 2
         write_capacity_units = 1
 
-    name = UnicodeAttribute(hash_key=True)
-    lifecycle_stage = UnicodeAttribute(range_key=True)
+    name: str = UnicodeAttribute(hash_key=True)
+    lifecycle_stage: str = UnicodeAttribute(range_key=True)
 
 
 class BaseEntry(Model):
@@ -62,14 +62,14 @@ class BaseEntry(Model):
         table_name = "mlflow-tracking-store"
         region = "eu-central-1"
 
-    cls = DiscriminatorAttribute()
-    id = UnicodeAttribute(hash_key=True)
-    name = UnicodeAttribute(null=True)
+    cls: str = DiscriminatorAttribute()
+    id: str = UnicodeAttribute(hash_key=True)
+    name: str = UnicodeAttribute(null=True)
 
     name_index = ExperimentNameIndex()
 
-    lifecycle_stage = UnicodeAttribute(default="active")
-    tags = MapAttribute(default={})
+    lifecycle_stage: str = UnicodeAttribute(default="active")
+    tags: MapAttribute = MapAttribute(default={})
 
 
 class Experiment(BaseEntry, discriminator="Experiment"):
@@ -77,7 +77,7 @@ class Experiment(BaseEntry, discriminator="Experiment"):
     DynamoDB abstraction for mlflow Experiments
     """
 
-    artifact_location = UnicodeAttribute(null=True)
+    artifact_location: str = UnicodeAttribute(null=True)
 
     def to_mlflow(self) -> mlflow.entities.Experiment:
         return mlflow.entities.Experiment(
@@ -92,20 +92,32 @@ class Experiment(BaseEntry, discriminator="Experiment"):
         )
 
 
+class Metric(MapAttribute):
+    key: str = UnicodeAttribute()
+    value: float = NumberAttribute()
+    timestamp: float = NumberAttribute()
+    step: int = NumberAttribute()
+
+    def to_mlflow(self) -> mlflow.entities.Metric:
+        return mlflow.entities.Metric(
+            key=self.key, value=self.value, timestamp=self.timestamp, step=self.step
+        )
+
+
 class Run(BaseEntry, discriminator="Run"):
     """
     DynamoDB abstraction for mlflow Runs
     """
 
-    experiment_id = UnicodeAttribute()
-    user_id = UnicodeAttribute(null=True)
-    status = NumberAttribute(default=2)
-    start_time = NumberAttribute(null=True)
-    end_time = NumberAttribute(null=True)
-    artifact_uri = UnicodeAttribute()
+    experiment_id: str = UnicodeAttribute()
+    user_id: str = UnicodeAttribute(null=True)
+    status: int = NumberAttribute(default=2)
+    start_time: float = NumberAttribute(null=True)
+    end_time: float = NumberAttribute(null=True)
+    artifact_uri: str = UnicodeAttribute()
 
-    metrics = JSONAttribute(default=[])
-    params = MapAttribute(default={})
+    metrics: List[Metric] = ListAttribute(default=[], of=Metric)
+    params: MapAttribute = MapAttribute(default={})
 
     def to_mlflow(self) -> mlflow.entities.Run:
         run_info = mlflow.entities.RunInfo(
@@ -127,15 +139,7 @@ class Run(BaseEntry, discriminator="Run"):
             mlflow.entities.Param(key=key, value=value)
             for key, value in self.params.as_dict().items()
         ]
-        metrics = [
-            mlflow.entities.Metric(
-                key=metric["key"],
-                value=metric["value"],
-                timestamp=metric["timestamp"],
-                step=metric["step"],
-            )
-            for metric in self.metrics
-        ]
+        metrics = [metric.to_mlflow() for metric in self.metrics]
         run_data = mlflow.entities.RunData(metrics=metrics, params=params, tags=tags)
         return mlflow.entities.Run(run_info, run_data)
 
@@ -356,7 +360,7 @@ class DynamodbTrackingStore(AbstractStore):
         artifact_location = experiment.artifact_location
         if artifact_location is None:
             artifact_location = self.artifact_location
-        print(artifact_location)
+
         run = Run(
             id=run_id,
             experiment_id=experiment_id,
@@ -416,15 +420,9 @@ class DynamodbTrackingStore(AbstractStore):
         """
         run = Run.get(run_id)
         metrics = []
-        for entry in run.metrics:
-            metrics.append(
-                mlflow.entities.Metric(
-                    key=metric_key,
-                    value=entry["value"],
-                    timestamp=entry["timestamp"],
-                    step=entry["step"],
-                )
-            )
+        for metric in run.metrics:
+            if metric.key == metric_key:
+                metrics.append(metric.to_mlflow())
         return metrics
 
     def search_runs(
@@ -532,12 +530,12 @@ class DynamodbTrackingStore(AbstractStore):
         item_metrics = run.metrics
         for metric in metrics or []:
             item_metrics.append(
-                {
-                    "timestamp": metric.timestamp,
-                    "value": metric.value,
-                    "step": metric.step,
-                    "key": metric.key,
-                }
+                Metric(
+                    key=metric.key,
+                    value=metric.value,
+                    timestamp=metric.timestamp,
+                    step=metric.step,
+                )
             )
         run.metrics = item_metrics
         run.save()
