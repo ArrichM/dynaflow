@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "dynaflow"
+version = "0.0.1-alpha"
+description = "AWS Dynamodb backend tracking store for MLFlow"
+authors = ["ArrichM <maximilianjakob.arrich@student.unisg.ch>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+click = "^8.0.4"
+pynamodb = "^5.2.1"
+mlflow = "^1.24.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+pre-commit = "^2.17.0"
+black = "^22.1.0"
+flake8 = "^4.0.1"
+isort = "^5.10.1"
+pytest-cov = "^3.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--cov=./src --cov-report term-missing --strict-markers"
+testpaths = ["tests"]
+
+[tool.poetry.scripts]
+dynaflow = 'dynaflow.cli:dynaflow'
+
+[tool.poetry.plugins]
+
+[tool.poetry.plugins."mlflow.tracking_store"]
+"dynamodb" = "dynaflow.tracking_store:DynamodbTrackingStore"
+[tool.poetry.plugins."mlflow.model_registry_store"]
+"dynamodb" = "dynaflow.model_registry:DynamodbModelStore"
