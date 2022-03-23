@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple
 
 try:
     from typing import Literal
@@ -33,7 +33,7 @@ _TRACKING_DIR_ENV_VAR = "MLFLOW_TRACKING_DIR"
 _TRACKING_BUCKET_ENV_VAR = "DYNAFLOW_ARTIFACT_BUCKET"
 
 
-def _default_root_dir():
+def _default_root_dir() -> str:
     if os.environ.get(_TRACKING_BUCKET_ENV_VAR, False):
         s3_bucket = os.environ[_TRACKING_BUCKET_ENV_VAR]
         if not s3_bucket.startswith("s3://"):
@@ -65,11 +65,10 @@ class BaseEntry(Model):
     cls: str = DiscriminatorAttribute()
     id: str = UnicodeAttribute(hash_key=True)
     name: str = UnicodeAttribute(null=True)
-
-    name_index = ExperimentNameIndex()
-
     lifecycle_stage: str = UnicodeAttribute(default="active")
     tags: MapAttribute = MapAttribute(default={})
+
+    name_index = ExperimentNameIndex()
 
 
 class Experiment(BaseEntry, discriminator="Experiment"):
@@ -213,7 +212,7 @@ class DynamodbTrackingStore(AbstractStore):
         name: str,
         artifact_location: Optional[str] = None,
         tags: List[mlflow.entities.ExperimentTag] = None,
-    ) -> Union[str, None]:
+    ) -> Optional[str]:
         """
         Create a new experiment.
         If an experiment with the given registered_model_name already exists, throws exception.

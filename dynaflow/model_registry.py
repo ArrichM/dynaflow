@@ -1,8 +1,8 @@
 import json
+import logging
 import re
 import time
 from typing import List, Union
-import logging
 
 import mlflow
 import mlflow.entities.model_registry
@@ -36,8 +36,8 @@ class VersionIndex(GlobalSecondaryIndex):
         read_capacity_units = 2
         write_capacity_units = 1
 
-    version = NumberAttribute(hash_key=True)
-    registered_model_name = UnicodeAttribute(range_key=True)
+    version: float = NumberAttribute(hash_key=True)
+    registered_model_name: str = UnicodeAttribute(range_key=True)
 
 
 class BaseEntry(Model):
@@ -47,15 +47,15 @@ class BaseEntry(Model):
 
     version_index = VersionIndex()
 
-    cls = DiscriminatorAttribute()
-    registered_model_name = UnicodeAttribute(hash_key=True)
-    version = NumberAttribute(range_key=True)
+    cls: str = DiscriminatorAttribute()
+    registered_model_name: str = UnicodeAttribute(hash_key=True)
+    version: float = NumberAttribute(range_key=True)
 
-    creation_timestamp = NumberAttribute()
+    creation_timestamp: float = NumberAttribute()
 
-    tags = MapAttribute(default={})
-    last_updated_timestamp = NumberAttribute(null=True)
-    description = UnicodeAttribute(null=True)
+    tags: MapAttribute = MapAttribute(default={})
+    last_updated_timestamp: float = NumberAttribute(null=True)
+    description: str = UnicodeAttribute(null=True)
 
     def evaluated_key(self) -> str:
         return json.dumps(
@@ -67,17 +67,20 @@ class BaseEntry(Model):
 
 
 class ModelVersion(BaseEntry, discriminator="ModelVersion"):
+    """
+    DynamoDB abstraction for mlflow ModelVersions
+    """
 
-    current_stage = UnicodeAttribute(default_for_new=STAGE_NONE)
-    status = UnicodeAttribute(
+    current_stage: str = UnicodeAttribute(default_for_new=STAGE_NONE)
+    status: str = UnicodeAttribute(
         default_for_new=ModelVersionStatus.to_string(ModelVersionStatus.READY)
     )
 
-    user_id = UnicodeAttribute(null=True)
-    source = UnicodeAttribute(null=True)
-    run_id = UnicodeAttribute(null=True)
-    status_message = UnicodeAttribute(null=True)
-    run_link = UnicodeAttribute(null=True)
+    user_id: str = UnicodeAttribute(null=True)
+    source: str = UnicodeAttribute(null=True)
+    run_id: str = UnicodeAttribute(null=True)
+    status_message: str = UnicodeAttribute(null=True)
+    run_link: str = UnicodeAttribute(null=True)
 
     def to_mlflow(self) -> mlflow.entities.model_registry.ModelVersion:
         return mlflow.entities.model_registry.ModelVersion(
@@ -102,7 +105,7 @@ class ModelVersion(BaseEntry, discriminator="ModelVersion"):
 
 class RegisteredModel(BaseEntry, discriminator="RegisteredModel"):
     """
-    DynamoDB abstraction for mlflow Experiments
+    DynamoDB abstraction for mlflow RegisteredModels
     """
 
     def load_versions(self) -> List[mlflow.entities.model_registry.ModelVersion]:
@@ -112,8 +115,8 @@ class RegisteredModel(BaseEntry, discriminator="RegisteredModel"):
     def to_mlflow(self) -> mlflow.entities.model_registry.RegisteredModel:
         return mlflow.entities.model_registry.RegisteredModel(
             name=self.registered_model_name,
-            creation_timestamp=self.creation_timestamp,
-            last_updated_timestamp=self.last_updated_timestamp,
+            creation_timestamp=int(self.creation_timestamp * 1000),
+            last_updated_timestamp=int(self.last_updated_timestamp * 1000),
             description=self.description,
             latest_versions=self.load_versions(),
             tags=[
@@ -131,7 +134,6 @@ class DynamodbModelStore(AbstractStore):
 
     def __init__(self, store_uri: str):
         super(DynamodbModelStore, self).__init__()
-        print(store_uri)
 
         _, region, tracking_table_name, model_table_name = store_uri.split(":")
 
@@ -151,7 +153,8 @@ class DynamodbModelStore(AbstractStore):
         if not re.match("name ilike '%.*%'", filter_string):
             raise ValueError(
                 "Only filter string satisfying the regex "
-                "pattern <name ilike '%.*%'> are allowed."
+                "pattern <name ilike '%.*%'> are allowed. "
+                f"Received filter string: {filter_string}"
             )
 
         starts_with_str = re.sub("%'$", "", re.sub("^name ilike '%", "", filter_string))
@@ -202,7 +205,7 @@ class DynamodbModelStore(AbstractStore):
         :return: A single object of :py:class:`mlflow.entities.model_registry.RegisteredModel`
                  created in the backend.
         """
-        creation_timestamp = int(time.time() * 1000)
+        creation_timestamp = time.time()
         registered_model = RegisteredModel(
             registered_model_name=name,
             version=-1,
@@ -224,7 +227,7 @@ class DynamodbModelStore(AbstractStore):
         """
         registered_model = RegisteredModel.get(hash_key=name, range_key=-1)
         registered_model.description = description
-        registered_model.last_updated_timestamp = int(time.time() * 1000)
+        registered_model.last_updated_timestamp = time.time()
         registered_model.save()
         return registered_model.to_mlflow()
 
@@ -240,13 +243,13 @@ class DynamodbModelStore(AbstractStore):
         """
         registered_model = RegisteredModel.get(hash_key=name, range_key=-1)
         registered_model.registered_model_name = new_name
-        registered_model.last_updated_timestamp = int(time.time() * 1000)
+        registered_model.last_updated_timestamp = time.time()
 
         # Update all associated versions to reflect the new model Name
         registered_versions = ModelVersion.query(hash_key=name)
         for version in registered_versions:
             version.registered_model_name = name
-            version.last_updated_timestamp = int(time.time() * 1000)
+            version.last_updated_timestamp = time.time()
             version.save()
 
         registered_model.save()
@@ -420,7 +423,7 @@ class DynamodbModelStore(AbstractStore):
 
         # Check how many versions are there and increment by 1
         new_version = ModelVersion.query(name).total_count + 1
-        creation_timestamp = int(time.time() * 1000)
+        creation_timestamp = time.time()
         model_version = ModelVersion(
             registered_model_name=name,
             version=new_version,
@@ -448,7 +451,7 @@ class DynamodbModelStore(AbstractStore):
         """
         model_version = ModelVersion.get(hash_key=name, range_key=int(version))
         model_version.description = description
-        model_version.last_updated_timestamp = int(time.time() * 1000)
+        model_version.last_updated_timestamp = time.time()
         model_version.save()
         return model_version.to_mlflow()
 
@@ -580,7 +583,7 @@ class DynamodbModelStore(AbstractStore):
         tags = model_version.tags.as_dict()
         tags.update({tag.key: tag.value})
         model_version.tags = tags
-        model_version.last_updated_timestamp = int(time.time() * 1000)
+        model_version.last_updated_timestamp = time.time()
         model_version.save()
 
     def delete_model_version_tag(self, name: str, version: int, key: str) -> None:
