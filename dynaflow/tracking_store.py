@@ -30,12 +30,19 @@ from pynamodb.models import Model
 log = logging.getLogger(__name__)
 
 _TRACKING_DIR_ENV_VAR = "MLFLOW_TRACKING_DIR"
+_TRACKING_BUCKET_ENV_VAR = "DYNAFLOW_ARTIFACT_BUCKET"
 
 
 def _default_root_dir():
-    return os.environ.get(_TRACKING_DIR_ENV_VAR, False) or os.path.abspath(
-        DEFAULT_LOCAL_FILE_AND_ARTIFACT_PATH
-    )
+    if os.environ.get(_TRACKING_BUCKET_ENV_VAR, False):
+        s3_bucket = os.environ[_TRACKING_BUCKET_ENV_VAR]
+        if not s3_bucket.startswith("s3://"):
+            s3_bucket = "s3://" + s3_bucket
+        return s3_bucket
+    elif os.environ.get(_TRACKING_DIR_ENV_VAR, False):
+        return os.environ[_TRACKING_DIR_ENV_VAR]
+    else:
+        return os.path.abspath(DEFAULT_LOCAL_FILE_AND_ARTIFACT_PATH)
 
 
 class ExperimentNameIndex(GlobalSecondaryIndex):
