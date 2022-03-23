@@ -257,7 +257,7 @@ class DynamodbTrackingStore(AbstractStore):
 
     def get_experiment_by_name(
         self, experiment_name: str
-    ) -> mlflow.entities.Experiment:
+    ) -> Optional[mlflow.entities.Experiment]:
         """
         Fetch the experiment by registered_model_name from the backend store.
         This is a base implementation using ``list_experiments``, derived classes may have
@@ -270,8 +270,6 @@ class DynamodbTrackingStore(AbstractStore):
         experiments = Experiment.name_index.query(hash_key=experiment_name)
         for experiment in experiments:
             return experiment.to_mlflow()
-        else:
-            raise ValueError(f"No experiment by the name: {experiment_name}")
 
     def delete_experiment(self, experiment_id: str) -> str:
         """
