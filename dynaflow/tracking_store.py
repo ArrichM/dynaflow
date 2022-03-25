@@ -226,11 +226,9 @@ class DynamodbTrackingStore(AbstractStore):
 
         experiment_id = str(uuid.uuid4().hex)
         # Check if experiment already exists
-        try:
-            self.get_experiment_by_name(name)
+        existing_experiment = self.get_experiment_by_name(name)
+        if existing_experiment is not None:
             raise FileExistsError(f"Experiment by the name {name} already exists")
-        except ValueError:
-            pass
 
         experiment = Experiment(
             id=experiment_id,

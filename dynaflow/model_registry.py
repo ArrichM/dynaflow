@@ -93,8 +93,8 @@ class ModelVersion(BaseEntry, discriminator="ModelVersion"):
             status=self.status,
             status_message=self.status_message,
             run_link=self.run_link,
-            creation_timestamp=self.creation_timestamp,
-            last_updated_timestamp=self.last_updated_timestamp,
+            creation_timestamp=int(self.creation_timestamp * 1000),
+            last_updated_timestamp=int(self.last_updated_timestamp * 1000),
             tags=[
                 mlflow.entities.model_registry.ModelVersionTag(key=key, value=value)
                 for key, value in self.tags.as_dict().items()
