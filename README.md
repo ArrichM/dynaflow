@@ -1,6 +1,6 @@
 # Dynaflow
 
-Dynaflow implements a serverless AWS dynamodb tracking store and model registry. It
+Dynaflow implements a serverless AWS dynamodb tracking store and model registry for MLFlow. It
 allows to directly log runs and models to AWS Dynamodb using your AWS credentials. Further
 authorisation can be implemented using Dynamodb fine-grained access control.
 
