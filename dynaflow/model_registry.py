@@ -422,7 +422,8 @@ class DynamodbModelStore(AbstractStore):
         """
 
         # Check how many versions are there and increment by 1
-        new_version = ModelVersion.query(name).total_count + 1
+        new_version = ModelVersion.count(name) + 1
+
         creation_timestamp = time.time()
         model_version = ModelVersion(
             registered_model_name=name,
