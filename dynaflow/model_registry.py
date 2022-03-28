@@ -456,7 +456,7 @@ class DynamodbModelStore(AbstractStore):
         return model_version.to_mlflow()
 
     def transition_model_version_stage(
-        self, name: str, version: int, stage: str, archive_existing_versions: bool
+        self, name: str, version: int, new_stage: str, archive_existing_versions: bool
     ) -> mlflow.entities.model_registry.ModelVersion:
         """
         Update model version stage.
@@ -472,7 +472,7 @@ class DynamodbModelStore(AbstractStore):
         """
 
         is_active_stage = (
-            get_canonical_stage(stage) in DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS
+            get_canonical_stage(new_stage) in DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS
         )
         if archive_existing_versions and not is_active_stage:
             msg_tpl = (
@@ -480,22 +480,27 @@ class DynamodbModelStore(AbstractStore):
                 "because '{}' is not an Active stage. Valid stages are {}"
             )
             raise MlflowException(
-                msg_tpl.format(stage, DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS)
+                msg_tpl.format(new_stage, DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS)
             )
 
         version = int(version)
 
         model_version = ModelVersion.get(hash_key=name, range_key=version)
-        model_version.current_stage = get_canonical_stage(stage)
+        model_version.current_stage = get_canonical_stage(new_stage)
 
         if archive_existing_versions:
-            other_versions = ModelVersion.query(
-                hash_key=name, range_key_condition=ModelVersion.version < version
-            )
+            other_versions = ModelVersion.query(hash_key=name)
             with ModelVersion.batch_write() as batch:
-                for version in other_versions:
-                    version.current_stage = STAGE_ARCHIVED
-                    batch.save(version)
+                for other_model_version in other_versions:
+                    # Do not archive this model version
+                    if other_model_version.version == version:
+                        continue
+                    # If other versions are on the same stage, archive them
+                    if other_model_version.current_stage == get_canonical_stage(
+                        new_stage
+                    ):
+                        other_model_version.current_stage = STAGE_ARCHIVED
+                        batch.save(model_version)
 
         model_version.save()
 
