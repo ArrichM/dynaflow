@@ -457,14 +457,14 @@ class DynamodbModelStore(AbstractStore):
         return model_version.to_mlflow()
 
     def transition_model_version_stage(
-        self, name: str, version: int, new_stage: str, archive_existing_versions: bool
+        self, name: str, version: int, stage: str, archive_existing_versions: bool
     ) -> mlflow.entities.model_registry.ModelVersion:
         """
         Update model version stage.
 
         :param name: Registered model name.
         :param version: Registered model version.
-        :param new_stage: New desired stage for this model version.
+        :param stage: New desired stage for this model version.
         :param archive_existing_versions: If this flag is set to ``True``, all existing model
             versions in the stage will be automically moved to the "archived" stage. Only valid
             when ``stage`` is ``"staging"`` or ``"production"`` otherwise an error will be raised.
@@ -473,7 +473,7 @@ class DynamodbModelStore(AbstractStore):
         """
 
         is_active_stage = (
-            get_canonical_stage(new_stage) in DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS
+            get_canonical_stage(stage) in DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS
         )
         if archive_existing_versions and not is_active_stage:
             msg_tpl = (
@@ -481,13 +481,13 @@ class DynamodbModelStore(AbstractStore):
                 "because '{}' is not an Active stage. Valid stages are {}"
             )
             raise MlflowException(
-                msg_tpl.format(new_stage, DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS)
+                msg_tpl.format(stage, DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS)
             )
 
         version = int(version)
 
         model_version = ModelVersion.get(hash_key=name, range_key=version)
-        model_version.current_stage = get_canonical_stage(new_stage)
+        model_version.current_stage = get_canonical_stage(stage)
 
         if archive_existing_versions:
             other_versions = ModelVersion.query(hash_key=name)
@@ -497,9 +497,7 @@ class DynamodbModelStore(AbstractStore):
                     if other_model_version.version == version:
                         continue
                     # If other versions are on the same stage, archive them
-                    if other_model_version.current_stage == get_canonical_stage(
-                        new_stage
-                    ):
+                    if other_model_version.current_stage == get_canonical_stage(stage):
                         other_model_version.current_stage = STAGE_ARCHIVED
                         batch.save(model_version)
 
@@ -567,7 +565,7 @@ class DynamodbModelStore(AbstractStore):
                 )
                 model_versions = ModelVersion.scan(model_name_condition)
             except ValueError:
-                raise (f"Filter expression not supported. {filter_string}")
+                raise ValueError(f"Filter expression not supported. {filter_string}")
 
         return self._query_result_to_paged_list(model_versions)
 

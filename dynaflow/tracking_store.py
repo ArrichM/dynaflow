@@ -489,11 +489,11 @@ class DynamodbTrackingStore(AbstractStore):
             filter_expression = filter_expression & Run.name.startswith(filter_string)
         runs = []
         for experiment_id in experiment_ids:
-            runs.append(
+            runs.extend(
                 Run.scan((Run.experiment_id == experiment_id) & filter_expression)
             )
 
-        return [run.to_mlflow() for run_list in runs for run in run_list], None
+        return [run.to_mlflow() for run in runs], None
 
     def log_batch(
         self,
