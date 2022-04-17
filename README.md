@@ -44,8 +44,8 @@ export DYNAFLOW_ARTIFACT_BUCKET=<artifact-bucket-name>
 
 When running a tracking server, set the dynamodb tracking backend using the following command:
 
-`
+```
 mlflow server
     --backend-store-uri dynamodb:<region>:<tracking-table-name>:<model-table-name>
     --default-artifact-root s3://<artifact-bucket-name>/
-``
+```

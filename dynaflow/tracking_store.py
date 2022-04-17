@@ -76,7 +76,7 @@ class Experiment(BaseEntry, discriminator="Experiment"):
     DynamoDB abstraction for mlflow Experiments
     """
 
-    artifact_location: str = UnicodeAttribute(null=True)
+    artifact_location: str = UnicodeAttribute()
 
     def to_mlflow(self) -> mlflow.entities.Experiment:
         return mlflow.entities.Experiment(
