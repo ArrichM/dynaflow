@@ -153,23 +153,30 @@ class DynamodbModelStore(AbstractStore):
         if filter_string is None or len(filter_string) == 0:
             return None
 
-        if not re.match("name ilike '%.*%'", filter_string):
-            raise ValueError(
-                "Only filter string satisfying the regex "
-                "pattern <name ilike '%.*%'> are allowed. "
-                f"Received filter string: {filter_string}"
+        if re.match("name ilike '%.*%'", filter_string):
+
+            starts_with_str = re.sub(
+                "%'$", "", re.sub("^name ilike '%", "", filter_string)
             )
 
-        starts_with_str = re.sub("%'$", "", re.sub("^name ilike '%", "", filter_string))
+            if starts_with_str:
+                return filtered_model.registered_model_name.startswith(starts_with_str)
+            else:
+                return None
 
-        if starts_with_str:
-            range_key_condition = filtered_model.registered_model_name.startswith(
-                starts_with_str
+        if re.match("run_id IN \(.*\)", filter_string):
+            model_ids = (
+                re.sub("^run_id IN \(", "", re.sub("\)$", "", filter_string))
+                .replace("'", "")
+                .split(",")
             )
-        else:
-            range_key_condition = None
+            return filtered_model.registered_model_name.is_in(*model_ids)
 
-        return range_key_condition
+        raise ValueError(
+            "Only filter string satisfying the regex "
+            "pattern <name ilike '%.*%'> are allowed. "
+            f"Received filter string: {filter_string}"
+        )
 
     @staticmethod
     def _query_result_to_paged_list(
