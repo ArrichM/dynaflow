@@ -150,6 +150,9 @@ class DynamodbModelStore(AbstractStore):
     def _resolve_filter_condition(
         filter_string: str, filtered_model: Union[RegisteredModel, ModelVersion]
     ):
+        if filter_string is None or len(filter_string) == 0:
+            return None
+
         if not re.match("name ilike '%.*%'", filter_string):
             raise ValueError(
                 "Only filter string satisfying the regex "

@@ -50,3 +50,4 @@ mlruns/
 
 # mypy
 .mypy_cache/
+start_dynaflow.sh
