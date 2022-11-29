@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 
 _TRACKING_DIR_ENV_VAR = "MLFLOW_TRACKING_DIR"
 _TRACKING_BUCKET_ENV_VAR = "DYNAFLOW_ARTIFACT_BUCKET"
-
+_DYNAMO_HOST_URI = "SCYLLADB_URI"
 
 def _default_root_dir() -> str:
     if os.environ.get(_TRACKING_BUCKET_ENV_VAR, False):
@@ -154,7 +154,10 @@ class DynamodbTrackingStore(AbstractStore):
         _, region, tracking_table_name, model_table_name = store_uri.split(":")
 
         BaseEntry.Meta.table_name = tracking_table_name
-        BaseEntry.Meta.region = region
+        if region == "localhost":
+            BaseEntry.Meta.host = os.environ.get(_DYNAMO_HOST_URI)
+        else:
+            BaseEntry.Meta.region = region
 
         self.artifact_location = artifact_uri or _default_root_dir()
 

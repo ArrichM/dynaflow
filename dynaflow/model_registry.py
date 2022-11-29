@@ -3,7 +3,7 @@ import logging
 import re
 import time
 from typing import List, Union
-
+import os
 import mlflow
 import mlflow.entities.model_registry
 from mlflow.entities.model_registry.model_version_stages import (
@@ -26,7 +26,7 @@ from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from pynamodb.models import Model
 
 log = logging.getLogger(__name__)
-
+_DYNAMO_HOST_URI = "SCYLLADB_URI"
 
 class VersionIndex(GlobalSecondaryIndex):
     class Meta:
@@ -138,7 +138,10 @@ class DynamodbModelStore(AbstractStore):
         _, region, tracking_table_name, model_table_name = store_uri.split(":")
 
         BaseEntry.Meta.table_name = model_table_name
-        BaseEntry.Meta.region = region
+        if region == "localhost":
+            BaseEntry.Meta.host = os.environ.get(_DYNAMO_HOST_URI)
+        else:
+            BaseEntry.Meta.region = region
         if not BaseEntry.exists():
             log.error(
                 "Model Registry table does not exist."
@@ -551,7 +554,10 @@ class DynamodbModelStore(AbstractStore):
         """
 
 
-
+        # filter_string comes looking like so:
+        # run_id IN ('71e6fee821be4689a02f2c57d34e9d0e','1d600a9dc28a4807b1525868d2ff262a',
+        #           '821f678971474e27848f8d1979987da9','764ae203841d40d9a26df58ce13becde',
+        #           '7117c0b9a51d4b40a8df84ed801f1c8b','6c010aff9c134bb39844f375572295c4')
         if re.match('^.* IN \(.*\)',filter_string):
             model_versions = []
             query_col, query_values = filter_string.split('IN')
