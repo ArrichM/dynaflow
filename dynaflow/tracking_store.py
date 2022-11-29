@@ -53,6 +53,7 @@ class ExperimentNameIndex(GlobalSecondaryIndex):
         read_capacity_units = 2
         write_capacity_units = 1
 
+
     name: str = UnicodeAttribute(hash_key=True)
     lifecycle_stage: str = UnicodeAttribute(range_key=True)
 
@@ -154,6 +155,7 @@ class DynamodbTrackingStore(AbstractStore):
 
         BaseEntry.Meta.table_name = tracking_table_name
         BaseEntry.Meta.region = region
+
         self.artifact_location = artifact_uri or _default_root_dir()
 
         if not BaseEntry.exists():
@@ -163,10 +165,10 @@ class DynamodbTrackingStore(AbstractStore):
             )
 
     def list_experiments(
-        self,
-        view_type=mlflow.entities.ViewType.ACTIVE_ONLY,
-        max_results=None,
-        page_token=None,
+            self,
+            view_type=mlflow.entities.ViewType.ACTIVE_ONLY,
+            max_results=None,
+            page_token=None,
     ) -> PagedList[mlflow.entities.Experiment]:
         """
         :param view_type: Qualify requested type of experiments.
@@ -186,13 +188,13 @@ class DynamodbTrackingStore(AbstractStore):
                 Experiment.lifecycle_stage == "active",
                 limit=limit,
                 last_evaluated_key=page_token,
-            )
+                )
         elif view_type == mlflow.entities.ViewType.DELETED_ONLY:
             experiments = Experiment.scan(
                 Experiment.lifecycle_stage == "deleted",
                 limit=limit,
                 last_evaluated_key=page_token,
-            )
+                )
         else:
             experiments = Experiment.scan(limit=limit, last_evaluated_key=page_token)
         experiments = [experiment for experiment in experiments]
@@ -208,10 +210,10 @@ class DynamodbTrackingStore(AbstractStore):
         )
 
     def create_experiment(
-        self,
-        name: str,
-        artifact_location: Optional[str] = None,
-        tags: List[mlflow.entities.ExperimentTag] = None,
+            self,
+            name: str,
+            artifact_location: Optional[str] = None,
+            tags: List[mlflow.entities.ExperimentTag] = None,
     ) -> Optional[str]:
         """
         Create a new experiment.
@@ -253,7 +255,7 @@ class DynamodbTrackingStore(AbstractStore):
         return Experiment.get(hash_key=experiment_id).to_mlflow()
 
     def get_experiment_by_name(
-        self, experiment_name: str
+            self, experiment_name: str
     ) -> Optional[mlflow.entities.Experiment]:
         """
         Fetch the experiment by registered_model_name from the backend store.
@@ -320,7 +322,7 @@ class DynamodbTrackingStore(AbstractStore):
         return Run.get(run_id).to_mlflow()
 
     def update_run_info(
-        self, run_id: str, run_status: str, end_time: str
+            self, run_id: str, run_status: str, end_time: str
     ) -> mlflow.entities.RunInfo:
         """
         Update the metadata of the specified run.
@@ -334,11 +336,11 @@ class DynamodbTrackingStore(AbstractStore):
         return run.to_mlflow().info
 
     def create_run(
-        self,
-        experiment_id: str,
-        user_id: str,
-        start_time: str,
-        tags: List[mlflow.entities.RunTag],
+            self,
+            experiment_id: str,
+            user_id: str,
+            start_time: str,
+            tags: List[mlflow.entities.RunTag],
     ) -> mlflow.entities.Run:
         """
         Create a run under the specified experiment ID, setting the run's status to "RUNNING"
@@ -388,7 +390,7 @@ class DynamodbTrackingStore(AbstractStore):
         run.save()
 
     def set_experiment_tag(
-        self, experiment_id: str, tag: mlflow.entities.ExperimentTag
+            self, experiment_id: str, tag: mlflow.entities.ExperimentTag
     ) -> None:
         """
         Set a tag for the specified experiment
@@ -403,7 +405,7 @@ class DynamodbTrackingStore(AbstractStore):
         experiment.save()
 
     def get_metric_history(
-        self, run_id: str, metric_key: str
+            self, run_id: str, metric_key: str
     ) -> List[mlflow.entities.Metric]:
         """
         Return a list of metric objects corresponding to all values logged for a given metric.
@@ -421,13 +423,13 @@ class DynamodbTrackingStore(AbstractStore):
         return metrics
 
     def search_runs(
-        self,
-        experiment_ids: List[str],
-        filter_string: str,
-        run_view_type: Literal["ACTIVE_ONLY", "DELETED_ONLY", "ALL"],
-        max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
-        order_by: List[str] = None,
-        page_token: str = None,
+            self,
+            experiment_ids: List[str],
+            filter_string: str,
+            run_view_type: Literal["ACTIVE_ONLY", "DELETED_ONLY", "ALL"],
+            max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
+            order_by: List[str] = None,
+            page_token: str = None,
     ) -> PagedList[mlflow.entities.Run]:
         """
         Return runs that match the given list of search expressions within the experiments.
@@ -458,13 +460,13 @@ class DynamodbTrackingStore(AbstractStore):
         return PagedList(runs, token)
 
     def _search_runs(
-        self,
-        experiment_ids: List[str],
-        filter_string: str,
-        run_view_type: Literal["ACTIVE_ONLY", "DELETED_ONLY", "ALL"],
-        max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
-        order_by: List[str] = None,
-        page_token: str = None,
+            self,
+            experiment_ids: List[str],
+            filter_string: str,
+            run_view_type: Literal["ACTIVE_ONLY", "DELETED_ONLY", "ALL"],
+            max_results: int = SEARCH_MAX_RESULTS_DEFAULT,
+            order_by: List[str] = None,
+            page_token: str = None,
     ) -> Tuple[List[mlflow.entities.Run], Optional[str]]:
         """
         Return runs that match the given list of search expressions within the experiments, as
@@ -493,14 +495,32 @@ class DynamodbTrackingStore(AbstractStore):
                 Run.scan((Run.experiment_id == experiment_id) & filter_expression)
             )
 
+        try:
+            order_by = list(order_by)
+            if order_by is not None and len(list(order_by))>0:
+                order_by=order_by[0]
+                descending = order_by.split(' ')[-1] != 'ASC'
+                if 'metrics' in order_by:
+                    metric = order_by.split('`')[1]
+                    runs = sorted(runs,
+                                  key=lambda run: [m.value for m in run.attribute_values['metrics'] if m.key==metric][-1:],
+                                  reverse=descending)
+                elif 'attribute' in order_by:
+                    by = order_by.split(' ')[0]
+                    by = by.split('.')[1]
+                    runs = sorted(runs,
+                                  key=lambda run: run.attribute_values[by],
+                                  reverse=descending)
+        except Exception as e:
+            log.warn(f"Failed to sort data with error: {e}")
         return [run.to_mlflow() for run in runs], None
 
     def log_batch(
-        self,
-        run_id: str,
-        metrics: List[mlflow.entities.Metric],
-        params: List[mlflow.entities.Param],
-        tags: List[mlflow.entities.RunTag],
+            self,
+            run_id: str,
+            metrics: List[mlflow.entities.Metric],
+            params: List[mlflow.entities.Param],
+            tags: List[mlflow.entities.RunTag],
     ) -> None:
         """
         Log multiple metrics, params, and tags for the specified run

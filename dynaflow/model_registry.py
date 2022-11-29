@@ -139,7 +139,6 @@ class DynamodbModelStore(AbstractStore):
 
         BaseEntry.Meta.table_name = model_table_name
         BaseEntry.Meta.region = region
-
         if not BaseEntry.exists():
             log.error(
                 "Model Registry table does not exist."
@@ -148,39 +147,25 @@ class DynamodbModelStore(AbstractStore):
 
     @staticmethod
     def _resolve_filter_condition(
-        filter_string: str, filtered_model: Union[RegisteredModel, ModelVersion]
+            filter_string: str, filtered_model: Union[RegisteredModel, ModelVersion]
     ):
-        if filter_string is None or len(filter_string) == 0:
-            return None
+        if filter_string and not re.match("name ilike '%.*%'", filter_string):
+            raise ValueError( "Only filter string satisfying the regex " "pattern <name ilike '%.*%'> are allowed. " f"Received filter string: {filter_string}" )
 
-        if re.match("name ilike '%.*%'", filter_string):
+        starts_with_str = re.sub("%'$", "", re.sub("^name ilike '%", "", filter_string))
 
-            starts_with_str = re.sub(
-                "%'$", "", re.sub("^name ilike '%", "", filter_string)
+        if starts_with_str:
+            range_key_condition = filtered_model.registered_model_name.startswith(
+                starts_with_str
             )
+        else:
+            range_key_condition = None
 
-            if starts_with_str:
-                return filtered_model.registered_model_name.startswith(starts_with_str)
-            else:
-                return None
-
-        if re.match("run_id IN \(.*\)", filter_string):
-            model_ids = (
-                re.sub("^run_id IN \(", "", re.sub("\)$", "", filter_string))
-                .replace("'", "")
-                .split(",")
-            )
-            return filtered_model.registered_model_name.is_in(*model_ids)
-
-        raise ValueError(
-            "Only filter string satisfying the regex "
-            "pattern <name ilike '%.*%'> are allowed. "
-            f"Received filter string: {filter_string}"
-        )
+        return range_key_condition
 
     @staticmethod
     def _query_result_to_paged_list(
-        query_result,
+            query_result,
     ) -> PagedList[
         Union[
             mlflow.entities.model_registry.RegisteredModel,
@@ -200,10 +185,10 @@ class DynamodbModelStore(AbstractStore):
     # CRUD API for RegisteredModel objects
 
     def create_registered_model(
-        self,
-        name: str,
-        tags: List[mlflow.entities.model_registry.RegisteredModelTag] = None,
-        description: str = None,
+            self,
+            name: str,
+            tags: List[mlflow.entities.model_registry.RegisteredModelTag] = None,
+            description: str = None,
     ) -> mlflow.entities.model_registry.RegisteredModel:
         """
         Create a new registered model in backend store.
@@ -242,7 +227,7 @@ class DynamodbModelStore(AbstractStore):
         return registered_model.to_mlflow()
 
     def rename_registered_model(
-        self, name: str, new_name: str
+            self, name: str, new_name: str
     ) -> mlflow.entities.model_registry.RegisteredModel:
         """
         Rename the registered model.
@@ -281,7 +266,7 @@ class DynamodbModelStore(AbstractStore):
             version.delete()
 
     def list_registered_models(
-        self, max_results: int, page_token: str
+            self, max_results: int, page_token: str
     ) -> PagedList[mlflow.entities.model_registry.RegisteredModel]:
         """
         List of all registered models.
@@ -302,11 +287,11 @@ class DynamodbModelStore(AbstractStore):
         return self._query_result_to_paged_list(registered_models)
 
     def search_registered_models(
-        self,
-        filter_string: str = None,
-        max_results: int = None,
-        order_by: str = None,
-        page_token: str = None,
+            self,
+            filter_string: str = None,
+            max_results: int = None,
+            order_by: str = None,
+            page_token: str = None,
     ) -> PagedList[mlflow.entities.model_registry.RegisteredModel]:
         """
         Search for registered models in backend that satisfy the filter criteria.
@@ -339,7 +324,7 @@ class DynamodbModelStore(AbstractStore):
         return self._query_result_to_paged_list(registered_models)
 
     def get_registered_model(
-        self, name: str
+            self, name: str
     ) -> mlflow.entities.model_registry.RegisteredModel:
         """
         Get registered model instance by name.
@@ -351,7 +336,7 @@ class DynamodbModelStore(AbstractStore):
         return registered_model.to_mlflow()
 
     def get_latest_versions(
-        self, name: str, stages: List[str] = None
+            self, name: str, stages: List[str] = None
     ) -> List[mlflow.entities.model_registry.ModelVersion]:
         """
         Latest version models for each requested stage. If no ``stages`` argument is provided,
@@ -379,7 +364,7 @@ class DynamodbModelStore(AbstractStore):
         return list(latest_by_stage.values())
 
     def set_registered_model_tag(
-        self, name: str, tag: mlflow.entities.model_registry.RegisteredModelTag
+            self, name: str, tag: mlflow.entities.model_registry.RegisteredModelTag
     ) -> None:
         """
         Set a tag for the registered model.
@@ -409,13 +394,13 @@ class DynamodbModelStore(AbstractStore):
     # CRUD API for ModelVersion objects
 
     def create_model_version(
-        self,
-        name: str,
-        source: str,
-        run_id=None,
-        tags: List[mlflow.entities.model_registry.ModelVersionTag] = None,
-        run_link: str = None,
-        description: str = None,
+            self,
+            name: str,
+            source: str,
+            run_id=None,
+            tags: List[mlflow.entities.model_registry.ModelVersionTag] = None,
+            run_link: str = None,
+            description: str = None,
     ) -> mlflow.entities.model_registry.ModelVersion:
         """
         Create a new model version from given source and run ID.
@@ -450,7 +435,7 @@ class DynamodbModelStore(AbstractStore):
         return model_version.to_mlflow()
 
     def update_model_version(
-        self, name: str, version: int, description
+            self, name: str, version: int, description
     ) -> mlflow.entities.model_registry.ModelVersion:
         """
         Update metadata associated with a model version in backend.
@@ -467,7 +452,7 @@ class DynamodbModelStore(AbstractStore):
         return model_version.to_mlflow()
 
     def transition_model_version_stage(
-        self, name: str, version: int, stage: str, archive_existing_versions: bool
+            self, name: str, version: int, stage: str, archive_existing_versions: bool
     ) -> mlflow.entities.model_registry.ModelVersion:
         """
         Update model version stage.
@@ -483,7 +468,7 @@ class DynamodbModelStore(AbstractStore):
         """
 
         is_active_stage = (
-            get_canonical_stage(stage) in DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS
+                get_canonical_stage(stage) in DEFAULT_STAGES_FOR_GET_LATEST_VERSIONS
         )
         if archive_existing_versions and not is_active_stage:
             msg_tpl = (
@@ -527,7 +512,7 @@ class DynamodbModelStore(AbstractStore):
         model_version.delete()
 
     def get_model_version(
-        self, name: str, version: int
+            self, name: str, version: int
     ) -> mlflow.entities.model_registry.ModelVersion:
         """
         Get the model version instance by name and version.
@@ -553,7 +538,7 @@ class DynamodbModelStore(AbstractStore):
         return model_version.source
 
     def search_model_versions(
-        self, filter_string: str
+            self, filter_string: str
     ) -> PagedList[mlflow.entities.model_registry.ModelVersion]:
         """
         Search for model versions in backend that satisfy the filter criteria.
@@ -565,25 +550,38 @@ class DynamodbModelStore(AbstractStore):
                  objects.
         """
 
-        if re.match("^.*='.*'$", filter_string):
+
+
+        if re.match('^.* IN \(.*\)',filter_string):
+            model_versions = []
+            query_col, query_values = filter_string.split('IN')
+            query_values = eval(query_values)
+            for value in query_values:
+                model_versions.extend(ModelVersion.query(hash_key=value))
+
+
+
+
+        elif re.match("^.*='.*'$", filter_string):
             model_name = re.sub("'$", "", re.sub("^.*='", "", filter_string))
             model_versions = ModelVersion.query(hash_key=model_name)
+
         else:
             try:
                 model_name_condition = self._resolve_filter_condition(
                     filter_string, ModelVersion
                 )
                 model_versions = ModelVersion.scan(model_name_condition)
-            except ValueError:
-                raise ValueError(f"Filter expression not supported. {filter_string}")
+            except ValueError as e:
+                raise ValueError(f"Filter expression not supported. {filter_string} , {e}")
 
         return self._query_result_to_paged_list(model_versions)
 
     def set_model_version_tag(
-        self,
-        name: str,
-        version: int,
-        tag: mlflow.entities.model_registry.ModelVersionTag,
+            self,
+            name: str,
+            version: int,
+            tag: mlflow.entities.model_registry.ModelVersionTag,
     ) -> None:
         """
         Set a tag for the model version.
