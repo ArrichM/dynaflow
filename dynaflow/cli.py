@@ -4,7 +4,8 @@ import click
 
 import dynaflow.model_registry as model_registry
 import dynaflow.tracking_store as tracking_store
-
+import os
+_DYNAMO_HOST_URI = "SCYLLADB_URI"
 
 @click.group()
 def dynaflow():
@@ -21,7 +22,13 @@ def _deploy(
         ["-tracking-store", "-model-registry"],
     ):
         model.Meta.table_name = base_name + suffix
-        model.Meta.region = region
+        if region == "local":
+            print(os.environ.get(_DYNAMO_HOST_URI))
+            model.Meta.host = os.environ.get(_DYNAMO_HOST_URI)
+            model.Meta.region = region
+        else:
+            model.Meta.region = region
+
         # Create the table if it does not exist yet
         if not model.exists():
             click.echo(f"Deploying table: {base_name}{suffix} ({region})...")
