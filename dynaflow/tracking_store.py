@@ -154,8 +154,9 @@ class DynamodbTrackingStore(AbstractStore):
         _, region, tracking_table_name, model_table_name = store_uri.split(":")
 
         BaseEntry.Meta.table_name = tracking_table_name
-        if region == "localhost":
+        if region == "local":
             BaseEntry.Meta.host = os.environ.get(_DYNAMO_HOST_URI)
+            BaseEntry.Meta.region = region
         else:
             BaseEntry.Meta.region = region
 
