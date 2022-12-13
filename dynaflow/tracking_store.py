@@ -328,7 +328,7 @@ class DynamodbTrackingStore(AbstractStore):
         return Run.get(run_id).to_mlflow()
 
     def update_run_info(
-            self, run_id: str, run_status: str, end_time: str
+            self, run_id: str, run_status: str, end_time: str, run_name: str
     ) -> mlflow.entities.RunInfo:
         """
         Update the metadata of the specified run.
@@ -338,6 +338,7 @@ class DynamodbTrackingStore(AbstractStore):
         run = Run.get(run_id)
         run.status = run_status
         run.end_time = end_time
+        run.run_name = run_name
         run.save()
         return run.to_mlflow().info
 
@@ -520,7 +521,7 @@ class DynamodbTrackingStore(AbstractStore):
                                   key=lambda run: run.attribute_values[by],
                                   reverse=descending)
         except Exception as e:
-            log.warn(f"Failed to sort data with error: {e}")
+            log.warning(f"Failed to sort data with error: {e}")
         return [run.to_mlflow() for run in runs], None
 
     def log_batch(
