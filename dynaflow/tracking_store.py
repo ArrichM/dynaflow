@@ -115,6 +115,7 @@ class Run(BaseEntry, discriminator="Run"):
     start_time: float = NumberAttribute(null=True)
     end_time: float = NumberAttribute(null=True)
     artifact_uri: str = UnicodeAttribute()
+    run_name: str = UnicodeAttribute()
 
     metrics: List[Metric] = ListAttribute(default=[], of=Metric)
     params: MapAttribute = MapAttribute(default={})
@@ -130,6 +131,7 @@ class Run(BaseEntry, discriminator="Run"):
             end_time=self.end_time,
             lifecycle_stage=self.lifecycle_stage,
             artifact_uri=self.artifact_uri,
+            run_name=self.run_name
         )
         tags = [
             mlflow.entities.RunTag(key=key, value=value)
@@ -345,6 +347,7 @@ class DynamodbTrackingStore(AbstractStore):
             user_id: str,
             start_time: str,
             tags: List[mlflow.entities.RunTag],
+            run_name: Optional[str]=None,
     ) -> mlflow.entities.Run:
         """
         Create a run under the specified experiment ID, setting the run's status to "RUNNING"
@@ -369,6 +372,7 @@ class DynamodbTrackingStore(AbstractStore):
             start_time=start_time,
             tags={tag.key: tag.value for tag in tags},
             artifact_uri=os.path.join(artifact_location, run_id, "artifacts"),
+            run_name=run_name
         )
         run.save()
         return run.to_mlflow()
