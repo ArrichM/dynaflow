@@ -339,6 +339,7 @@ class DynamodbTrackingStore(AbstractStore):
         user_id: str,
         start_time: str,
         tags: List[mlflow.entities.RunTag],
+        run_name: Optional[str] = None,
     ) -> mlflow.entities.Run:
         """
         Create a run under the specified experiment ID, setting the run's status to "RUNNING"
